@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import DashboardView from './views/DashboardView.svelte';
+  import MonitorView from './views/MonitorView.svelte';
   import CodingView from './views/CodingView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import ApiEndpointView from './views/ApiEndpointView.svelte';
@@ -174,6 +175,49 @@
     provider: 'codex',
     zo_model: ''
   });
+  let channelIntegrations = $state({
+    telegram: {
+      enabled: false,
+      bot_token: '',
+      secret_token: '',
+      reply_enabled: true,
+      model: 'gpt-5.2-codex'
+    },
+    discord: {
+      enabled: false,
+      inbound_secret: '',
+      webhook_url: '',
+      reply_enabled: true,
+      model: 'gpt-5.2-codex'
+    },
+    whatsapp: {
+      enabled: false,
+      verify_token: '',
+      access_token: '',
+      phone_number_id: '',
+      reply_enabled: true,
+      model: 'gpt-5.2-codex'
+    }
+  });
+  let selfHeal = $state({
+    enabled: false,
+    on_error: true,
+    command: '',
+    auto_push: true,
+    git_remote: 'origin',
+    git_branch: 'main',
+    commit_prefix: 'self-heal',
+    has_github_token: false
+  });
+  let selfHealGitHubTokenInput = $state('');
+  let selfHealClearGitHubToken = $state(false);
+  let selfHealGitRemoteURL = $state('');
+  let selfHealTestPushResult = $state('');
+  let selfHealSyncResult = $state('');
+  let selfHealForcePushResult = $state('');
+  let channelPairingPending = $state([]);
+  let channelPairingLinks = $state([]);
+  let channelPairingSessionID = $state('');
   let showClaudeEnableModal = $state(false);
   let appVersion = $state('dev');
   let codexVersion = $state('unknown');
@@ -186,6 +230,8 @@
   let updateCheckBusy = $state(false);
   let usageRefreshBusy = $state(false);
   let usageAutomationBusy = $state(false);
+  let monitorBusy = $state(false);
+  let monitorSnapshot = $state(null);
   let autoSwitchInProgress = $state(false);
   let lastAutoSwitchAt = $state(0);
   let lastUsageAlertSignature = $state('');
@@ -245,6 +291,20 @@
 
   function setStatus(text, kind = 'info') {
     status = { text, kind };
+  }
+
+  async function loadHostMonitor({ quiet = false } = {}) {
+    if (monitorBusy) return;
+    monitorBusy = true;
+    try {
+      const data = await req('/api/monitor/host');
+      monitorSnapshot = data;
+      if (!quiet) setStatus('Server monitor refreshed.', 'success');
+    } catch (error) {
+      if (!quiet) setStatus(error.message, 'error');
+    } finally {
+      monitorBusy = false;
+    }
   }
 
 
@@ -738,8 +798,330 @@
     updateCheckedAt = String(data.update_checked_at || '').trim();
     updateCheckError = String(data.update_check_error || '').trim();
     claudeCodeIntegration = buildClaudeCodeIntegration(data);
+    const nextChannels = (data.channels && typeof data.channels === 'object') ? data.channels : {};
+    channelIntegrations = {
+      telegram: {
+        enabled: Boolean(nextChannels?.telegram?.enabled),
+        bot_token: String(nextChannels?.telegram?.bot_token || '').trim(),
+        secret_token: String(nextChannels?.telegram?.secret_token || '').trim(),
+        reply_enabled: nextChannels?.telegram?.reply_enabled !== false,
+        model: String(nextChannels?.telegram?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+      },
+      discord: {
+        enabled: Boolean(nextChannels?.discord?.enabled),
+        inbound_secret: String(nextChannels?.discord?.inbound_secret || '').trim(),
+        webhook_url: String(nextChannels?.discord?.webhook_url || '').trim(),
+        reply_enabled: nextChannels?.discord?.reply_enabled !== false,
+        model: String(nextChannels?.discord?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+      },
+      whatsapp: {
+        enabled: Boolean(nextChannels?.whatsapp?.enabled),
+        verify_token: String(nextChannels?.whatsapp?.verify_token || '').trim(),
+        access_token: String(nextChannels?.whatsapp?.access_token || '').trim(),
+        phone_number_id: String(nextChannels?.whatsapp?.phone_number_id || '').trim(),
+        reply_enabled: nextChannels?.whatsapp?.reply_enabled !== false,
+        model: String(nextChannels?.whatsapp?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+      }
+    };
+    const nextSelfHeal = (data.self_heal && typeof data.self_heal === 'object') ? data.self_heal : {};
+    selfHeal = {
+      enabled: Boolean(nextSelfHeal?.enabled),
+      on_error: nextSelfHeal?.on_error !== false,
+      command: String(nextSelfHeal?.command || '').trim(),
+      auto_push: nextSelfHeal?.auto_push !== false,
+      git_remote: String(nextSelfHeal?.git_remote || 'origin').trim() || 'origin',
+      git_branch: String(nextSelfHeal?.git_branch || 'main').trim() || 'main',
+      commit_prefix: String(nextSelfHeal?.commit_prefix || 'self-heal').trim() || 'self-heal',
+      has_github_token: Boolean(nextSelfHeal?.has_github_token)
+    };
+    selfHealGitHubTokenInput = '';
+    selfHealClearGitHubToken = false;
+    await loadSelfHealGitRemote();
+    await loadChannelPairing();
     await loadCodingTemplateHomeStatus();
   }
+
+  async function loadSelfHealGitRemote() {
+    try {
+      const data = await req('/api/self-heal/git-remote');
+      selfHealGitRemoteURL = String(data?.url || '').trim();
+      if (String(data?.remote || '').trim()) {
+        selfHeal = { ...selfHeal, git_remote: String(data.remote).trim() };
+      }
+      if (String(data?.branch || '').trim()) {
+        selfHeal = { ...selfHeal, git_branch: String(data.branch).trim() };
+      }
+    } catch {
+      selfHealGitRemoteURL = '';
+    }
+  }
+
+  async function loadChannelPairing() {
+    const data = await req('/api/channels/pairing');
+    channelPairingPending = Array.isArray(data?.pending) ? data.pending : [];
+    channelPairingLinks = Array.isArray(data?.links) ? data.links : [];
+  }
+
+  function updateChannelField(path, value) {
+    const raw = String(path || '').trim();
+    if (!raw.includes('.')) return;
+    const [group, key] = raw.split('.');
+    if (!channelIntegrations[group]) return;
+    channelIntegrations = {
+      ...channelIntegrations,
+      [group]: {
+        ...channelIntegrations[group],
+        [key]: value
+      }
+    };
+  }
+
+  async function saveChannelIntegrations() {
+    settingsBusy = true;
+    try {
+      const payload = {
+        channels: {
+          telegram: {
+            enabled: Boolean(channelIntegrations.telegram?.enabled),
+            bot_token: String(channelIntegrations.telegram?.bot_token || '').trim(),
+            secret_token: String(channelIntegrations.telegram?.secret_token || '').trim(),
+            reply_enabled: Boolean(channelIntegrations.telegram?.reply_enabled),
+            model: String(channelIntegrations.telegram?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          },
+          discord: {
+            enabled: Boolean(channelIntegrations.discord?.enabled),
+            inbound_secret: String(channelIntegrations.discord?.inbound_secret || '').trim(),
+            webhook_url: String(channelIntegrations.discord?.webhook_url || '').trim(),
+            reply_enabled: Boolean(channelIntegrations.discord?.reply_enabled),
+            model: String(channelIntegrations.discord?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          },
+          whatsapp: {
+            enabled: Boolean(channelIntegrations.whatsapp?.enabled),
+            verify_token: String(channelIntegrations.whatsapp?.verify_token || '').trim(),
+            access_token: String(channelIntegrations.whatsapp?.access_token || '').trim(),
+            phone_number_id: String(channelIntegrations.whatsapp?.phone_number_id || '').trim(),
+            reply_enabled: Boolean(channelIntegrations.whatsapp?.reply_enabled),
+            model: String(channelIntegrations.whatsapp?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          }
+        }
+      };
+      const data = await req('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (data?.channels && typeof data.channels === 'object') {
+        const next = data.channels;
+        channelIntegrations = {
+          telegram: {
+            enabled: Boolean(next?.telegram?.enabled),
+            bot_token: String(next?.telegram?.bot_token || '').trim(),
+            secret_token: String(next?.telegram?.secret_token || '').trim(),
+            reply_enabled: next?.telegram?.reply_enabled !== false,
+            model: String(next?.telegram?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          },
+          discord: {
+            enabled: Boolean(next?.discord?.enabled),
+            inbound_secret: String(next?.discord?.inbound_secret || '').trim(),
+            webhook_url: String(next?.discord?.webhook_url || '').trim(),
+            reply_enabled: next?.discord?.reply_enabled !== false,
+            model: String(next?.discord?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          },
+          whatsapp: {
+            enabled: Boolean(next?.whatsapp?.enabled),
+            verify_token: String(next?.whatsapp?.verify_token || '').trim(),
+            access_token: String(next?.whatsapp?.access_token || '').trim(),
+            phone_number_id: String(next?.whatsapp?.phone_number_id || '').trim(),
+            reply_enabled: next?.whatsapp?.reply_enabled !== false,
+            model: String(next?.whatsapp?.model || 'gpt-5.2-codex').trim() || 'gpt-5.2-codex'
+          }
+        };
+      }
+      setStatus('Channel integrations saved.', 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function saveSelfHealSettings() {
+    settingsBusy = true;
+    try {
+      const data = await req('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          self_heal: {
+            enabled: Boolean(selfHeal?.enabled),
+            on_error: Boolean(selfHeal?.on_error),
+            command: String(selfHeal?.command || ''),
+            auto_push: Boolean(selfHeal?.auto_push),
+            git_remote: String(selfHeal?.git_remote || 'origin').trim() || 'origin',
+            git_branch: String(selfHeal?.git_branch || 'main').trim() || 'main',
+            commit_prefix: String(selfHeal?.commit_prefix || 'self-heal').trim() || 'self-heal',
+            github_token: String(selfHealGitHubTokenInput || '').trim(),
+            clear_github_token: Boolean(selfHealClearGitHubToken)
+          }
+        })
+      });
+      const next = (data?.self_heal && typeof data.self_heal === 'object') ? data.self_heal : {};
+      selfHeal = {
+        enabled: Boolean(next?.enabled),
+        on_error: next?.on_error !== false,
+        command: String(next?.command || '').trim(),
+        auto_push: next?.auto_push !== false,
+        git_remote: String(next?.git_remote || 'origin').trim() || 'origin',
+        git_branch: String(next?.git_branch || 'main').trim() || 'main',
+        commit_prefix: String(next?.commit_prefix || 'self-heal').trim() || 'self-heal',
+        has_github_token: Boolean(next?.has_github_token)
+      };
+      selfHealGitHubTokenInput = '';
+      selfHealClearGitHubToken = false;
+      setStatus('Self-heal settings saved.', 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function saveSelfHealGitRemote() {
+    settingsBusy = true;
+    try {
+      const data = await req('/api/self-heal/git-remote', {
+        method: 'POST',
+        body: JSON.stringify({
+          remote: String(selfHeal?.git_remote || 'origin').trim() || 'origin',
+          url: String(selfHealGitRemoteURL || '').trim(),
+          branch: String(selfHeal?.git_branch || 'main').trim() || 'main'
+        })
+      });
+      selfHealGitRemoteURL = String(data?.url || '').trim();
+      selfHeal = {
+        ...selfHeal,
+        git_remote: String(data?.remote || selfHeal?.git_remote || 'origin').trim() || 'origin',
+        git_branch: String(data?.branch || selfHeal?.git_branch || 'main').trim() || 'main'
+      };
+      setStatus('Git remote updated.', 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function testSelfHealPush() {
+    settingsBusy = true;
+    selfHealTestPushResult = '';
+    try {
+      const data = await req('/api/self-heal/test-push', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      selfHealTestPushResult = JSON.stringify(data, null, 2);
+      if (data?.ok) {
+        setStatus('Test push success.', 'success');
+      } else {
+        setStatus(`Test push failed at ${String(data?.step || 'unknown')}.`, 'error');
+      }
+    } catch (error) {
+      selfHealTestPushResult = String(error?.message || 'test push failed');
+      setStatus(selfHealTestPushResult, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function syncSelfHealRemote() {
+    settingsBusy = true;
+    selfHealSyncResult = '';
+    try {
+      const data = await req('/api/self-heal/sync-remote', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      selfHealSyncResult = JSON.stringify(data, null, 2);
+      if (data?.ok) {
+        setStatus('Sync remote success.', 'success');
+      } else {
+        setStatus('Sync remote failed. Cek result detail.', 'error');
+      }
+    } catch (error) {
+      selfHealSyncResult = String(error?.message || 'sync failed');
+      setStatus(selfHealSyncResult, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function forcePushSelfHealRemote() {
+    settingsBusy = true;
+    selfHealForcePushResult = '';
+    try {
+      const data = await req('/api/self-heal/force-push', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      selfHealForcePushResult = JSON.stringify(data, null, 2);
+      if (data?.ok) {
+        setStatus('Force push success.', 'success');
+      } else {
+        setStatus('Force push failed. Cek result detail.', 'error');
+      }
+    } catch (error) {
+      selfHealForcePushResult = String(error?.message || 'force push failed');
+      setStatus(selfHealForcePushResult, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function approveChannelPairing(item) {
+    const channel = String(item?.channel || '').trim();
+    const userID = String(item?.user_id || '').trim();
+    const code = String(item?.code || '').trim();
+    if (!channel || !userID || !code) return;
+    settingsBusy = true;
+    try {
+      await req('/api/channels/pairing/approve', {
+        method: 'POST',
+        body: JSON.stringify({
+          channel,
+          user_id: userID,
+          code,
+          session_id: String(channelPairingSessionID || '').trim()
+        })
+      });
+      await loadChannelPairing();
+      setStatus(`Pairing approved for ${channel}:${userID}`, 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
+  async function revokeChannelPairing(item) {
+    const channel = String(item?.channel || '').trim();
+    const userID = String(item?.user_id || '').trim();
+    if (!channel || !userID) return;
+    settingsBusy = true;
+    try {
+      await req('/api/channels/pairing/revoke', {
+        method: 'POST',
+        body: JSON.stringify({
+          channel,
+          user_id: userID
+        })
+      });
+      await loadChannelPairing();
+      setStatus(`Pairing revoked for ${channel}:${userID}`, 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      settingsBusy = false;
+    }
+  }
+
 
   async function loadCodingTemplateHomeStatus() {
     const data = await req('/api/coding/template-home');
@@ -1855,6 +2237,7 @@
     if (!uiPrefsLoaded) return;
     saveUIPreferences();
   });
+
 </script>
 
 <svelte:head>
@@ -1896,6 +2279,12 @@
           <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H10l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5v-8zm4 2.5h8v1.8H8zm0 3.6h5.8v1.8H8z"></path></svg>
         </span>
         <span>Chat</span>
+      </button>
+      <button class={activeMenu === 'monitor' ? 'is-active' : ''} onclick={() => switchMenu('monitor')}>
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 4h18v2H3V4zm0 14h18v2H3v-2zm2-8h2v6H5v-6zm4-3h2v9H9V7zm4 2h2v7h-2V9zm4-4h2v11h-2V5z"></path></svg>
+        </span>
+        <span>Monitor</span>
       </button>
       <button class={activeMenu === 'api-endpoints' ? 'is-active' : ''} onclick={() => switchMenu('api-endpoints')}>
         <span class="nav-icon" aria-hidden="true">
@@ -2015,6 +2404,14 @@
       />
     {/if}
 
+    {#if !isChatRoute && activeMenu === 'monitor'}
+      <MonitorView
+        {monitorSnapshot}
+        {monitorBusy}
+        onRefreshMonitor={loadHostMonitor}
+      />
+    {/if}
+
     {#if !isChatRoute && activeMenu === 'settings'}
       <SettingsView
         busy={settingsBusy}
@@ -2046,6 +2443,34 @@
         onNudgeUsageAutoSwitchThreshold={nudgeUsageAutoSwitchThreshold}
         onNudgeUsageSchedulerInterval={nudgeUsageSchedulerInterval}
         onToggleUsageSoundEnabled={toggleUsageSoundEnabled}
+        channels={channelIntegrations}
+        onUpdateChannelField={updateChannelField}
+        onSaveChannelIntegrations={saveChannelIntegrations}
+        channelPairingPending={channelPairingPending}
+        channelPairingLinks={channelPairingLinks}
+        channelPairingSessionID={channelPairingSessionID}
+        onSetChannelPairingSessionID={(value) => (channelPairingSessionID = value)}
+        onRefreshChannelPairing={loadChannelPairing}
+        onApproveChannelPairing={approveChannelPairing}
+        onRevokeChannelPairing={revokeChannelPairing}
+        {selfHeal}
+        {selfHealGitHubTokenInput}
+        {selfHealClearGitHubToken}
+        {selfHealGitRemoteURL}
+        {selfHealTestPushResult}
+        {selfHealSyncResult}
+        {selfHealForcePushResult}
+        onSetSelfHealGitHubTokenInput={(value) => (selfHealGitHubTokenInput = value)}
+        onSetSelfHealClearGitHubToken={(value) => (selfHealClearGitHubToken = value)}
+        onSetSelfHealGitRemoteURL={(value) => (selfHealGitRemoteURL = value)}
+        onUpdateSelfHealField={(field, value) => {
+          selfHeal = { ...selfHeal, [field]: value };
+        }}
+        onSaveSelfHealSettings={saveSelfHealSettings}
+        onSaveSelfHealGitRemote={saveSelfHealGitRemote}
+        onSyncSelfHealRemote={syncSelfHealRemote}
+        onForcePushSelfHealRemote={forcePushSelfHealRemote}
+        onTestSelfHealPush={testSelfHealPush}
         {backgroundRefreshError}
         {backgroundRefreshLastAt}
       />

@@ -28,7 +28,33 @@
     onNudgeUsageAlertThreshold,
     onNudgeUsageAutoSwitchThreshold,
     onNudgeUsageSchedulerInterval,
-    onToggleUsageSoundEnabled
+    onToggleUsageSoundEnabled,
+    channels,
+    onUpdateChannelField,
+    onSaveChannelIntegrations,
+    channelPairingPending,
+    channelPairingLinks,
+    channelPairingSessionID,
+    onSetChannelPairingSessionID,
+    onRefreshChannelPairing,
+    onApproveChannelPairing,
+    onRevokeChannelPairing,
+    selfHeal,
+    selfHealGitHubTokenInput,
+    selfHealClearGitHubToken,
+    selfHealGitRemoteURL,
+    selfHealTestPushResult,
+    selfHealSyncResult,
+    selfHealForcePushResult,
+    onSetSelfHealGitHubTokenInput,
+    onSetSelfHealClearGitHubToken,
+    onSetSelfHealGitRemoteURL,
+    onUpdateSelfHealField,
+    onSaveSelfHealSettings,
+    onSaveSelfHealGitRemote,
+    onSyncSelfHealRemote,
+    onForcePushSelfHealRemote,
+    onTestSelfHealPush
   } = $props();
 
   function nudgeAlert(delta) {
@@ -169,6 +195,160 @@
         <p class="setting-title">
           Disabled: {(codingTemplateHome?.disabled_mcp_servers || []).join(', ') || 'None'}
         </p>
+      </div>
+    </section>
+
+    <section class="setting-category">
+      <h3 class="setting-category-title">Channel Integrations</h3>
+      <div class="setting-row">
+        <p class="setting-title">Telegram Bot</p>
+        <div class="setting-actions-grid with-three">
+          <input value={channels?.telegram?.bot_token || ''} placeholder="Bot token" oninput={(event) => onUpdateChannelField('telegram.bot_token', event.currentTarget.value)} />
+          <input value={channels?.telegram?.secret_token || ''} placeholder="Secret token (optional)" oninput={(event) => onUpdateChannelField('telegram.secret_token', event.currentTarget.value)} />
+          <input value={channels?.telegram?.model || ''} placeholder="Model" oninput={(event) => onUpdateChannelField('telegram.model', event.currentTarget.value)} />
+        </div>
+        <div class="inline-actions">
+          <label><input type="checkbox" checked={Boolean(channels?.telegram?.enabled)} onchange={(event) => onUpdateChannelField('telegram.enabled', event.currentTarget.checked)} /> Enabled</label>
+          <label><input type="checkbox" checked={channels?.telegram?.reply_enabled !== false} onchange={(event) => onUpdateChannelField('telegram.reply_enabled', event.currentTarget.checked)} /> Auto Reply</label>
+        </div>
+        <p class="setting-title">Inbound mode: <code>polling</code> (no webhook/public IP required)</p>
+      </div>
+
+      <div class="setting-row">
+        <p class="setting-title">Discord Webhook Bridge</p>
+        <div class="setting-actions-grid with-three">
+          <input value={channels?.discord?.inbound_secret || ''} placeholder="Inbound secret" oninput={(event) => onUpdateChannelField('discord.inbound_secret', event.currentTarget.value)} />
+          <input value={channels?.discord?.webhook_url || ''} placeholder="Discord webhook URL" oninput={(event) => onUpdateChannelField('discord.webhook_url', event.currentTarget.value)} />
+          <input value={channels?.discord?.model || ''} placeholder="Model" oninput={(event) => onUpdateChannelField('discord.model', event.currentTarget.value)} />
+        </div>
+        <div class="inline-actions">
+          <label><input type="checkbox" checked={Boolean(channels?.discord?.enabled)} onchange={(event) => onUpdateChannelField('discord.enabled', event.currentTarget.checked)} /> Enabled</label>
+          <label><input type="checkbox" checked={channels?.discord?.reply_enabled !== false} onchange={(event) => onUpdateChannelField('discord.reply_enabled', event.currentTarget.checked)} /> Auto Reply</label>
+        </div>
+        <p class="setting-title">Inbound endpoint menerima JSON bridge: <code>/api/channels/discord/webhook</code></p>
+      </div>
+
+      <div class="setting-row">
+        <p class="setting-title">WhatsApp Cloud API</p>
+        <div class="setting-actions-grid with-three">
+          <input value={channels?.whatsapp?.verify_token || ''} placeholder="Verify token" oninput={(event) => onUpdateChannelField('whatsapp.verify_token', event.currentTarget.value)} />
+          <input value={channels?.whatsapp?.access_token || ''} placeholder="Access token" oninput={(event) => onUpdateChannelField('whatsapp.access_token', event.currentTarget.value)} />
+          <input value={channels?.whatsapp?.phone_number_id || ''} placeholder="Phone number ID" oninput={(event) => onUpdateChannelField('whatsapp.phone_number_id', event.currentTarget.value)} />
+          <input value={channels?.whatsapp?.model || ''} placeholder="Model" oninput={(event) => onUpdateChannelField('whatsapp.model', event.currentTarget.value)} />
+        </div>
+        <div class="inline-actions">
+          <label><input type="checkbox" checked={Boolean(channels?.whatsapp?.enabled)} onchange={(event) => onUpdateChannelField('whatsapp.enabled', event.currentTarget.checked)} /> Enabled</label>
+          <label><input type="checkbox" checked={channels?.whatsapp?.reply_enabled !== false} onchange={(event) => onUpdateChannelField('whatsapp.reply_enabled', event.currentTarget.checked)} /> Auto Reply</label>
+        </div>
+        <p class="setting-title">Verify (GET) + webhook (POST): <code>/api/channels/whatsapp/webhook</code></p>
+      </div>
+
+      <div class="setting-row">
+        <button class="btn btn-primary" onclick={onSaveChannelIntegrations} disabled={busy}>Save Channel Integrations</button>
+      </div>
+    </section>
+
+    <section class="setting-category">
+      <h3 class="setting-category-title">Channel Pairing</h3>
+      <div class="setting-row">
+        <p class="setting-title">Approve pending pair request from channel command <code>/pair</code></p>
+        <div class="setting-actions-grid with-three">
+          <input
+            value={channelPairingSessionID || ''}
+            placeholder="Optional existing session_id (leave empty = create new)"
+            oninput={(event) => onSetChannelPairingSessionID(event.currentTarget.value)}
+          />
+          <button class="btn btn-secondary" onclick={onRefreshChannelPairing} disabled={busy}>Refresh Pairing</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Pending Requests</p>
+        {#if Array.isArray(channelPairingPending) && channelPairingPending.length > 0}
+          <div class="usage-list">
+            {#each channelPairingPending as item}
+              <div class="usage-item">
+                <div class="usage-top">
+                  <p>{item.channel}:{item.user_id}</p>
+                  <p>Code {item.code}</p>
+                </div>
+                <p class="usage-reset">Expires: {item.expires_at || '-'}</p>
+                <div class="inline-actions">
+                  <button class="btn btn-small btn-primary" onclick={() => onApproveChannelPairing(item)} disabled={busy}>Approve</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="empty-state compact">No pending requests.</div>
+        {/if}
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Active Links</p>
+        {#if Array.isArray(channelPairingLinks) && channelPairingLinks.length > 0}
+          <div class="usage-list">
+            {#each channelPairingLinks as item}
+              <div class="usage-item">
+                <div class="usage-top">
+                  <p>{item.channel}:{item.user_id}</p>
+                  <p><a href={`/chat?id=${encodeURIComponent(item.session_id || '')}`}>chat?id={item.session_id}</a></p>
+                </div>
+                <p class="usage-reset">Paired: {item.paired_at || '-'} | Model: {item.model_override || 'channel default'}</p>
+                <div class="inline-actions">
+                  <button class="btn btn-small btn-danger" onclick={() => onRevokeChannelPairing(item)} disabled={busy}>Revoke</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="empty-state compact">No active links.</div>
+        {/if}
+      </div>
+    </section>
+
+    <section class="setting-category">
+      <h3 class="setting-category-title">Self-Heal</h3>
+      <div class="setting-row">
+        <p class="setting-title">Automatic self-improvement and GitHub push</p>
+        <div class="inline-actions">
+          <label><input type="checkbox" checked={Boolean(selfHeal?.enabled)} onchange={(event) => onUpdateSelfHealField('enabled', event.currentTarget.checked)} /> Enabled</label>
+          <label><input type="checkbox" checked={selfHeal?.on_error !== false} onchange={(event) => onUpdateSelfHealField('on_error', event.currentTarget.checked)} /> Trigger on error</label>
+          <label><input type="checkbox" checked={selfHeal?.auto_push !== false} onchange={(event) => onUpdateSelfHealField('auto_push', event.currentTarget.checked)} /> Auto push</label>
+        </div>
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Fix Command</p>
+        <div class="setting-actions-grid with-three">
+          <input value={selfHeal?.command || ''} placeholder="PowerShell command to run fix pipeline" oninput={(event) => onUpdateSelfHealField('command', event.currentTarget.value)} />
+          <input value={selfHeal?.git_remote || 'origin'} placeholder="Git remote" oninput={(event) => onUpdateSelfHealField('git_remote', event.currentTarget.value)} />
+          <input value={selfHeal?.git_branch || 'main'} placeholder="Git branch" oninput={(event) => onUpdateSelfHealField('git_branch', event.currentTarget.value)} />
+          <input value={selfHealGitRemoteURL || ''} placeholder="Git remote URL (https://github.com/user/repo.git)" oninput={(event) => onSetSelfHealGitRemoteURL(event.currentTarget.value)} />
+          <input value={selfHeal?.commit_prefix || 'self-heal'} placeholder="Commit prefix" oninput={(event) => onUpdateSelfHealField('commit_prefix', event.currentTarget.value)} />
+          <input type="password" value={selfHealGitHubTokenInput || ''} placeholder="GitHub token (PAT) - leave blank to keep current" oninput={(event) => onSetSelfHealGitHubTokenInput(event.currentTarget.value)} />
+        </div>
+        <div class="inline-actions">
+          <label><input type="checkbox" checked={Boolean(selfHealClearGitHubToken)} onchange={(event) => onSetSelfHealClearGitHubToken(event.currentTarget.checked)} /> Clear saved token</label>
+        </div>
+        <p class="setting-title">GitHub token status: {selfHeal?.has_github_token ? 'saved' : 'not set'}</p>
+        <p class="setting-title">Jika ada error, engine akan jalankan command, cek build, lalu commit + push ke branch target.</p>
+      </div>
+      <div class="setting-row">
+        <button class="btn btn-primary" onclick={onSaveSelfHealSettings} disabled={busy}>Save Self-Heal</button>
+        <button class="btn btn-secondary" onclick={onSaveSelfHealGitRemote} disabled={busy}>Save Git Remote</button>
+        <button class="btn btn-secondary" onclick={onSyncSelfHealRemote} disabled={busy}>Sync Remote</button>
+        <button class="btn btn-secondary" onclick={onTestSelfHealPush} disabled={busy}>Test Push</button>
+        <button class="btn btn-danger" onclick={onForcePushSelfHealRemote} disabled={busy}>Force Push Main</button>
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Sync Result</p>
+        <pre>{selfHealSyncResult || '-'}</pre>
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Test Push Result</p>
+        <pre>{selfHealTestPushResult || '-'}</pre>
+      </div>
+      <div class="setting-row">
+        <p class="setting-title">Force Push Result</p>
+        <pre>{selfHealForcePushResult || '-'}</pre>
       </div>
     </section>
 

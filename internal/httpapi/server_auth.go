@@ -55,6 +55,12 @@ func (s *Server) isPublicPath(path string) bool {
 		return true
 	case p == "/api/auth/login":
 		return true
+	case p == "/api/channels/telegram/webhook":
+		return true
+	case p == "/api/channels/discord/webhook":
+		return true
+	case p == "/api/channels/whatsapp/webhook":
+		return true
 	}
 	return false
 }

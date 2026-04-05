@@ -112,10 +112,20 @@ func validateStructuredOutput(spec *structuredOutputSpec, output string) error {
 
 func (s *Server) withAccessLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !accessLogEnabled() {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 		path := strings.TrimSpace(r.URL.Path)
 		if path == "" {
 			path = "/"
+		}
+		kind := requestKind(path)
+		if kind == "web-ui" || kind == "web-api" || kind == "asset" {
+			// UI and local dashboard API paths are polled frequently; skip per-request log noise.
+			next.ServeHTTP(w, r)
+			return
 		}
 
 		// WebSocket upgrade paths should bypass response writer wrapping to avoid
@@ -136,7 +146,7 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 				"WS",
 				time.Since(start).Milliseconds(),
 				firstNonEmpty(remote, "-"),
-				requestKind(path),
+				kind,
 				apiAuth,
 				accountHint,
 				ua,
@@ -164,12 +174,17 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 			rec.status,
 			time.Since(start).Milliseconds(),
 			firstNonEmpty(remote, "-"),
-			requestKind(path),
+			kind,
 			apiAuth,
 			accountHint,
 			ua,
 		)
 	})
+}
+
+func accessLogEnabled() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("CODEXSESS_ACCESS_LOG")))
+	return raw == "1" || raw == "true" || raw == "yes" || raw == "on"
 }
 
 func requestKind(path string) string {

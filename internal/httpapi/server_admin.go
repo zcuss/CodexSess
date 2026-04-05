@@ -35,6 +35,7 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 		s.mu.RUnlock()
 		updateInfo := s.getUpdateInfo(r.Context(), false)
 		claudeCodeStatus := s.claudeCodeIntegrationStatus(base)
+		selfHeal := s.currentSelfHealConfig(r.Context())
 		respondJSON(w, 200, map[string]any{
 			"api_key":                          s.currentAPIKey(),
 			"api_mode":                         s.currentAPIMode(),
@@ -67,6 +68,8 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 			"update_available":                 updateInfo.UpdateAvailable,
 			"update_checked_at":                updateInfo.CheckedAt,
 			"update_check_error":               updateInfo.CheckError,
+			"channels":                         s.currentMessagingChannelSettings(r.Context()),
+			"self_heal":                        selfHeal,
 		})
 		return
 	case http.MethodPost:
@@ -82,6 +85,22 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 			ZoAPIStrategy            *string `json:"zo_api_strategy"`
 			AdminPassword            *string `json:"admin_password"`
 			DirectAPIInjectPrompt    *bool   `json:"direct_api_inject_prompt"`
+			Channels                 *struct {
+				Telegram *telegramChannelConfig `json:"telegram"`
+				Discord  *discordChannelConfig  `json:"discord"`
+				WhatsApp *whatsappChannelConfig `json:"whatsapp"`
+			} `json:"channels"`
+			SelfHeal *struct {
+				Enabled          bool   `json:"enabled"`
+				OnError          bool   `json:"on_error"`
+				Command          string `json:"command"`
+				AutoPush         bool   `json:"auto_push"`
+				GitRemote        string `json:"git_remote"`
+				GitBranch        string `json:"git_branch"`
+				CommitPrefix     string `json:"commit_prefix"`
+				GitHubToken      string `json:"github_token"`
+				ClearGitHubToken bool   `json:"clear_github_token"`
+			} `json:"self_heal"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondErr(w, 400, "bad_request", "invalid JSON")
@@ -141,6 +160,42 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 			cfg.AdminPasswordHash = config.HashPassword(plain)
 			adminPasswordChanged = true
 		}
+		channelBefore := s.currentMessagingChannelSettings(r.Context())
+		channelAfter := channelBefore
+		selfHealBefore := s.currentSelfHealConfig(r.Context())
+		selfHealAfter := selfHealBefore
+		if req.Channels != nil {
+			if req.Channels.Telegram != nil {
+				channelAfter.Telegram = *req.Channels.Telegram
+				channelAfter.Telegram.Model = normalizeChannelModel(channelAfter.Telegram.Model)
+			}
+			if req.Channels.Discord != nil {
+				channelAfter.Discord = *req.Channels.Discord
+				channelAfter.Discord.Model = normalizeChannelModel(channelAfter.Discord.Model)
+			}
+			if req.Channels.WhatsApp != nil {
+				channelAfter.WhatsApp = *req.Channels.WhatsApp
+				channelAfter.WhatsApp.Model = normalizeChannelModel(channelAfter.WhatsApp.Model)
+			}
+		}
+		if req.SelfHeal != nil {
+			selfHealAfter.Enabled = req.SelfHeal.Enabled
+			selfHealAfter.OnError = req.SelfHeal.OnError
+			selfHealAfter.Command = req.SelfHeal.Command
+			selfHealAfter.AutoPush = req.SelfHeal.AutoPush
+			selfHealAfter.GitRemote = req.SelfHeal.GitRemote
+			selfHealAfter.GitBranch = req.SelfHeal.GitBranch
+			selfHealAfter.CommitPrefix = req.SelfHeal.CommitPrefix
+			if req.SelfHeal.ClearGitHubToken {
+				selfHealAfter.GitHubToken = ""
+			} else if strings.TrimSpace(req.SelfHeal.GitHubToken) != "" {
+				selfHealAfter.GitHubToken = strings.TrimSpace(req.SelfHeal.GitHubToken)
+			}
+			selfHealAfter.HasGitHubTok = strings.TrimSpace(selfHealAfter.GitHubToken) != ""
+			selfHealAfter.GitRemote = firstNonEmpty(strings.TrimSpace(selfHealAfter.GitRemote), "origin")
+			selfHealAfter.GitBranch = firstNonEmpty(strings.TrimSpace(selfHealAfter.GitBranch), "main")
+			selfHealAfter.CommitPrefix = firstNonEmpty(strings.TrimSpace(selfHealAfter.CommitPrefix), "self-heal")
+		}
 		cfg.DirectAPIInjectPrompt = true
 		s.svc.Cfg = cfg
 		s.adminPasswordHash = strings.TrimSpace(cfg.AdminPasswordHash)
@@ -199,6 +254,18 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if req.Channels != nil {
+			if err := s.saveMessagingChannelSettings(r.Context(), channelAfter); err != nil {
+				respondErr(w, 500, "internal_error", err.Error())
+				return
+			}
+		}
+		if req.SelfHeal != nil {
+			if err := s.saveSelfHealConfig(r.Context(), selfHealAfter); err != nil {
+				respondErr(w, 500, "internal_error", err.Error())
+				return
+			}
+		}
 		if adminPasswordChanged {
 			if err := s.saveSetting(r.Context(), store.SettingAdminPasswordHash, cfg.AdminPasswordHash); err != nil {
 				respondErr(w, 500, "internal_error", err.Error())
@@ -237,6 +304,18 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 		if req.AdminPassword != nil {
 			changed["admin_password"] = map[string]any{"from": "updated", "to": "updated"}
 		}
+		if req.Channels != nil {
+			changed["channels"] = map[string]any{
+				"from": channelBefore,
+				"to":   channelAfter,
+			}
+		}
+		if req.SelfHeal != nil {
+			changed["self_heal"] = map[string]any{
+				"from": selfHealBefore,
+				"to":   selfHealAfter,
+			}
+		}
 		if len(changed) > 0 {
 			s.svc.AddSystemLog(r.Context(), "settings_change", "Settings updated", map[string]any{
 				"changed": changed,
@@ -256,6 +335,8 @@ func (s *Server) handleWebSettings(w http.ResponseWriter, r *http.Request) {
 			"usage_scheduler_interval_minutes": config.NormalizeUsageSchedulerIntervalMinutes(cfg.UsageSchedulerInterval),
 			"usage_refresh_timeout_seconds":    config.NormalizeUsageRefreshTimeoutSeconds(cfg.UsageRefreshTimeoutSec),
 			"usage_switch_timeout_seconds":     config.NormalizeUsageSwitchTimeoutSeconds(cfg.UsageSwitchTimeoutSec),
+			"channels":                         channelAfter,
+			"self_heal":                        selfHealAfter,
 		})
 		return
 	default:

@@ -2,6 +2,7 @@ function menuFromPath(path) {
   const p = String(path || '').trim().toLowerCase();
   if (p === '/settings') return 'settings';
   if (p === '/api-activity') return 'logs';
+  if (p === '/monitor') return 'monitor';
   if (p === '/workspaces') return 'api-endpoints';
   if (p === '/systemlogs') return 'system-logs';
   if (p === '/about') return 'about';
@@ -16,6 +17,8 @@ function pathForMenu(menu) {
       return '/settings';
     case 'logs':
       return '/api-activity';
+    case 'monitor':
+      return '/monitor';
     case 'api-endpoints':
       return '/workspaces';
     case 'system-logs':
@@ -46,6 +49,8 @@ function documentTitleByMenu(menu) {
       return `Workspaces - ${base}`;
     case 'logs':
       return `API Activity - ${base}`;
+    case 'monitor':
+      return `Monitor - ${base}`;
     case 'system-logs':
       return `System Logs - ${base}`;
     case 'about':

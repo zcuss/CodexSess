@@ -46,6 +46,7 @@
     if (file) onRestoreAccounts(file);
     if (event?.currentTarget) event.currentTarget.value = '';
   }
+
 </script>
 
 <section class="panel">

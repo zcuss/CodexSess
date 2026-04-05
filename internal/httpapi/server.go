@@ -43,6 +43,22 @@ type Server struct {
 	usageSchedulerRunning atomic.Bool
 	cliSwitchStatusMu     sync.Mutex
 	cliSwitchStatus       cliSwitchStatus
+	monitorMu             sync.Mutex
+	monitorPrevProcTicks  uint64
+	monitorPrevAt         time.Time
+	monitorPrevHostIdle   uint64
+	monitorPrevHostTotal  uint64
+	channelConvMu         sync.Mutex
+	channelConversations  map[string][]channelChatTurn
+	channelPairMu         sync.Mutex
+	channelPairLinks      map[string]channelPairLink
+	channelPairRequests   map[string]channelPairRequest
+	selfHealMu            sync.Mutex
+	selfHealLastHandledID string
+	selfHealLastRun       time.Time
+	telegramOffsetMu      sync.Mutex
+	telegramUpdateOffset  int64
+	startedAt             time.Time
 }
 
 const (
@@ -64,15 +80,19 @@ var (
 
 func New(svc *service.Service, bindAddr string, apiKey string, adminUsername string, adminPasswordHash string, traffic *trafficlog.Logger, appVersion string, codexVersion string) *Server {
 	return &Server{
-		svc:               svc,
-		bindAddr:          bindAddr,
-		apiKey:            apiKey,
-		adminUsername:     strings.TrimSpace(adminUsername),
-		adminPasswordHash: strings.TrimSpace(adminPasswordHash),
-		traffic:           traffic,
-		appVersion:        normalizeVersionString(appVersion),
-		codexVersion:      strings.TrimSpace(codexVersion),
-		invalidToolCache:  make(map[string]map[string]time.Time),
+		svc:                  svc,
+		bindAddr:             bindAddr,
+		apiKey:               apiKey,
+		adminUsername:        strings.TrimSpace(adminUsername),
+		adminPasswordHash:    strings.TrimSpace(adminPasswordHash),
+		traffic:              traffic,
+		appVersion:           normalizeVersionString(appVersion),
+		codexVersion:         strings.TrimSpace(codexVersion),
+		invalidToolCache:     make(map[string]map[string]time.Time),
+		channelConversations: map[string][]channelChatTurn{},
+		channelPairLinks:     map[string]channelPairLink{},
+		channelPairRequests:  map[string]channelPairRequest{},
+		startedAt:            time.Now(),
 	}
 }
 
@@ -105,6 +125,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("/api/zo/keys/reset", s.handleWebZoKeyReset)
 	mux.HandleFunc("/api/zo/keys/strategy", s.handleWebZoKeyStrategy)
 	mux.HandleFunc("/api/version/check", s.handleWebVersionCheck)
+	mux.HandleFunc("/api/monitor/host", s.handleWebHostMonitor)
 	mux.HandleFunc("/api/model-mappings", s.handleWebModelMappings)
 	mux.HandleFunc("/api/logs", s.handleWebLogs)
 	mux.HandleFunc("/api/coding/sessions", s.handleWebCodingSessions)
@@ -130,6 +151,16 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	mux.HandleFunc("/api/auth/device/start", s.handleWebDeviceStart)
 	mux.HandleFunc("/api/auth/device/poll", s.handleWebDevicePoll)
 	mux.HandleFunc("/api/events/log", s.handleWebClientEventLog)
+	mux.HandleFunc("/api/channels/telegram/webhook", s.handleTelegramWebhook)
+	mux.HandleFunc("/api/channels/discord/webhook", s.handleDiscordWebhook)
+	mux.HandleFunc("/api/channels/whatsapp/webhook", s.handleWhatsAppWebhook)
+	mux.HandleFunc("/api/channels/pairing", s.handleWebChannelPairing)
+	mux.HandleFunc("/api/channels/pairing/approve", s.handleWebChannelPairingApprove)
+	mux.HandleFunc("/api/channels/pairing/revoke", s.handleWebChannelPairingRevoke)
+	mux.HandleFunc("/api/self-heal/git-remote", s.handleWebSelfHealGitRemote)
+	mux.HandleFunc("/api/self-heal/test-push", s.handleWebSelfHealTestPush)
+	mux.HandleFunc("/api/self-heal/sync-remote", s.handleWebSelfHealSyncRemote)
+	mux.HandleFunc("/api/self-heal/force-push", s.handleWebSelfHealForcePush)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		respondJSON(w, 200, map[string]any{"ok": true})
 	})
@@ -151,6 +182,8 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	srv := &http.Server{Addr: s.bindAddr, Handler: handler}
 	go s.runUsageSchedulerLoop(ctx)
 	go s.runActiveUsageAutoSwitchLoop(ctx)
+	go s.runTelegramPollingLoop(ctx)
+	go s.runSelfHealLoop(ctx)
 	go func() {
 		<-ctx.Done()
 		_ = srv.Shutdown(context.Background())
