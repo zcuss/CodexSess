@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="rickicode/CodexSess"
+REPO="zcuss/CodexSess"
 MODE="auto"          # auto|gui|server|update
 VERSION="latest"     # latest or vX.Y.Z
 BIN_DIR="/usr/local/bin"
@@ -56,7 +56,7 @@ Usage:
 Options:
   --mode <auto|gui|server|update> Install mode (default: auto)
   --version <latest|vX.Y.Z>  Release version (default: latest)
-  --repo <owner/repo>        GitHub repo (default: rickicode/CodexSess)
+  --repo <owner/repo>        GitHub repo (default: zcuss/CodexSess)
   --bin-dir <path>           Binary install dir for server mode (default: /usr/local/bin)
   --no-sudo                  Do not use sudo for install commands
   -h, --help                 Show this help
