@@ -13,7 +13,7 @@
     onCheckForUpdates
   } = $props();
 
-  const updateScriptCommand = 'curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode update';
+  const updateScriptCommand = 'curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode update';
 
   async function writeClipboardText(text) {
     const value = String(text || '');
@@ -138,3 +138,4 @@
     </section>
   </div>
 </section>
+

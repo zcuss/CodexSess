@@ -89,23 +89,23 @@ Instead of juggling scripts, manual token edits, and separate dashboards, CodexS
 Use installer from repository raw script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash
 ```
 
 Mode examples:
 
 ```bash
 # auto (default)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode auto
 
 # gui package install (.deb/.rpm)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode gui
 
 # server / cli install
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode server
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode server
 
 # update existing install type (auto-detect gui/server)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode update
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode update
 ```
 
 GUI mode public access toggle (via `~/.bashrc`):
@@ -278,3 +278,4 @@ CodexSess focuses on operational reliability for Codex account usage:
 - clear active-state visibility
 - usage-aware automation and fallback
 - OpenAI-compatible integration surface
+

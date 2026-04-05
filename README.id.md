@@ -220,23 +220,23 @@ Catatan:
 Gunakan installer dari raw script repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash
 ```
 
 Contoh mode:
 
 ```bash
 # auto (default)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode auto
 
 # install package GUI (.deb/.rpm)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode gui
 
 # install server / cli
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode server
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode server
 
 # update tipe instalasi yang sudah ada (auto-detect gui/server)
-curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode update
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh | bash -s -- --mode update
 ```
 
 Instalasi Windows:
@@ -252,3 +252,4 @@ Fokus CodexSess adalah keandalan operasional untuk penggunaan akun Codex:
 - visibilitas status aktif yang jelas
 - otomasi usage-aware dan fallback
 - surface integrasi kompatibel OpenAI
+

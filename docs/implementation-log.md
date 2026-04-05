@@ -11,6 +11,14 @@ tags:
 
 ## 2026-04-06
 
+- Scope: fixed installer raw GitHub URLs to use the actual default branch case on upstream remote.
+- Files or subsystems touched: `README.md`, `README.id.md`, `web/src/views/AboutView.svelte`.
+- Behavior/runtime effect: update/install curl commands now fetch from `https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh` and no longer return 404 due to branch-case mismatch.
+- Validation status: validated `curl -I` against raw URL (`/Main/`) returns HTTP 200 and `/main/` returns HTTP 404.
+- Open follow-up items: none.
+
+## 2026-04-06
+
 - Scope: aligned updater/runtime GitHub repository references with the current remote owner.
 - Files or subsystems touched: `internal/httpapi/server_update.go`, `web/src/views/AboutView.svelte`, `scripts/install.sh`.
 - Behavior/runtime effect: update checking and update command generation now target `zcuss/CodexSess`, including installer default `--repo`.
