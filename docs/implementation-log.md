@@ -14,14 +14,14 @@ tags:
 - Scope: aligned updater/runtime GitHub repository references with the current remote owner.
 - Files or subsystems touched: `internal/httpapi/server_update.go`, `web/src/views/AboutView.svelte`, `scripts/install.sh`.
 - Behavior/runtime effect: update checking and update command generation now target `zcuss/CodexSess`, including installer default `--repo`.
-- Validation status: verified no remaining `rickicode/CodexSess` references with ripgrep and reviewed git diff.
+- Validation status: verified no remaining `zcuss/CodexSess` references with ripgrep and reviewed git diff.
 - Open follow-up items: none.
 
 ## 2026-04-06
 
 - Scope: updated README GitHub links to match the current repository remote ownership.
 - Files or subsystems touched: `README.md`, `README.id.md`.
-- Behavior/runtime effect: release, badge, and installer-script links now point to `zcuss/CodexSess` instead of `rickicode/CodexSess`.
+- Behavior/runtime effect: release, badge, and installer-script links now point to `zcuss/CodexSess` instead of `zcuss/CodexSess`.
 - Validation status: verified link replacements with `rg` and reviewed changed docs diff.
 - Open follow-up items: none.
 

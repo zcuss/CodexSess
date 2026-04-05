@@ -71,7 +71,7 @@ jobs:
           maintainer: rickicode
           description: CodexSess - Codex account management gateway
           vendor: CodexSess
-          homepage: https://github.com/rickicode/CodexSess
+          homepage: https://github.com/zcuss/CodexSess
           license: MIT
           contents:
             - src: ./dist/codexsess-linux-amd64
@@ -101,7 +101,7 @@ jobs:
           maintainer: rickicode
           description: CodexSess - Codex account management gateway
           vendor: CodexSess
-          homepage: https://github.com/rickicode/CodexSess
+          homepage: https://github.com/zcuss/CodexSess
           license: MIT
           contents:
             - src: ./dist/codexsess-linux-arm64
