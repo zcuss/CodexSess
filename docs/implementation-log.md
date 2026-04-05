@@ -9,6 +9,14 @@ tags:
 
 # Implementation Log
 
+## 2026-04-06
+
+- Scope: updated README GitHub links to match the current repository remote ownership.
+- Files or subsystems touched: `README.md`, `README.id.md`.
+- Behavior/runtime effect: release, badge, and installer-script links now point to `zcuss/CodexSess` instead of `rickicode/CodexSess`.
+- Validation status: verified link replacements with `rg` and reviewed changed docs diff.
+- Open follow-up items: none.
+
 ## 2026-04-02
 
 - Scope: normalized the coding workspace to the current chat-only system snapshot.

@@ -7,8 +7,8 @@
   <p>Kelola routing multi-akun API/CLI, otomasi berbasis usage, dan workspace coding browser yang persisten dalam satu binary.</p>
 
   <p>
-    <a href="https://github.com/rickicode/CodexSess/releases/latest">
-      <img src="https://img.shields.io/github/v/release/rickicode/CodexSess?style=flat-square" alt="Rilis Terbaru">
+    <a href="https://github.com/zcuss/CodexSess/releases/latest">
+      <img src="https://img.shields.io/github/v/release/zcuss/CodexSess?style=flat-square" alt="Rilis Terbaru">
     </a>
     <img src="https://img.shields.io/badge/Backend-Go-00ADD8?style=flat-square" alt="Go">
     <img src="https://img.shields.io/badge/Frontend-Svelte-FF3E00?style=flat-square" alt="Svelte">
@@ -47,7 +47,7 @@ Dirancang untuk operator yang membutuhkan:
 
 Untuk penggunaan normal, unduh binary/package dari halaman rilis terbaru:
 
-- https://github.com/rickicode/CodexSess/releases/latest
+- https://github.com/zcuss/CodexSess/releases/latest
 
 ## Pembaruan Besar Terbaru
 
@@ -220,29 +220,29 @@ Catatan:
 Gunakan installer dari raw script repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash
 ```
 
 Contoh mode:
 
 ```bash
 # auto (default)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
 
 # install package GUI (.deb/.rpm)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
 
 # install server / cli
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode server
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode server
 
 # update tipe instalasi yang sudah ada (auto-detect gui/server)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode update
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode update
 ```
 
 Instalasi Windows:
 
 - Unduh file `.exe` langsung dari:
-  - https://github.com/rickicode/CodexSess/releases/latest
+  - https://github.com/zcuss/CodexSess/releases/latest
 
 ## Cakupan Proyek
 

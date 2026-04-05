@@ -7,8 +7,8 @@
   <p>Manage multi-account API/CLI routing, usage-aware automation, and a persistent browser coding workspace in one binary.</p>
 
   <p>
-    <a href="https://github.com/rickicode/CodexSess/releases/latest">
-      <img src="https://img.shields.io/github/v/release/rickicode/CodexSess?style=flat-square" alt="Latest Release">
+    <a href="https://github.com/zcuss/CodexSess/releases/latest">
+      <img src="https://img.shields.io/github/v/release/zcuss/CodexSess?style=flat-square" alt="Latest Release">
     </a>
     <img src="https://img.shields.io/badge/Backend-Go-00ADD8?style=flat-square" alt="Go">
     <img src="https://img.shields.io/badge/Frontend-Svelte-FF3E00?style=flat-square" alt="Svelte">
@@ -48,7 +48,7 @@ It is designed for operators who need:
 
 For normal usage, download binaries/packages from the latest release page:
 
-- https://github.com/rickicode/CodexSess/releases/latest
+- https://github.com/zcuss/CodexSess/releases/latest
 
 ## Latest Major Updates
 
@@ -89,23 +89,23 @@ Instead of juggling scripts, manual token edits, and separate dashboards, CodexS
 Use installer from repository raw script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash
 ```
 
 Mode examples:
 
 ```bash
 # auto (default)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode auto
 
 # gui package install (.deb/.rpm)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode gui
 
 # server / cli install
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode server
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode server
 
 # update existing install type (auto-detect gui/server)
-curl -fsSL https://raw.githubusercontent.com/rickicode/CodexSess/main/scripts/install.sh | bash -s -- --mode update
+curl -fsSL https://raw.githubusercontent.com/zcuss/CodexSess/main/scripts/install.sh | bash -s -- --mode update
 ```
 
 GUI mode public access toggle (via `~/.bashrc`):
@@ -120,7 +120,7 @@ Then restart CodexSess GUI session.
 Windows installation:
 
 - Download `.exe` directly from:
-  - https://github.com/rickicode/CodexSess/releases/latest
+  - https://github.com/zcuss/CodexSess/releases/latest
 
 ## Core Capabilities
 
