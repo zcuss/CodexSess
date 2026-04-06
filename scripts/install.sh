@@ -337,11 +337,19 @@ resolve_tag() {
   fi
 
   require_cmd curl
-  local latest_url tag
-  latest_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest")"
-  tag="${latest_url##*/}"
-  if [[ -z "${tag}" || "${tag}" == "latest" ]]; then
-    err "failed to resolve latest release tag"
+  local release_api latest_json releases_json tag
+  release_api="https://api.github.com/repos/${REPO}/releases/latest"
+  latest_json="$(curl -fsSL -H 'Accept: application/vnd.github+json' "${release_api}" 2>/dev/null || true)"
+  tag="$(printf '%s' "${latest_json}" | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p' | head -n1)"
+
+  if [[ -z "${tag}" ]]; then
+    releases_json="$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${REPO}/releases?per_page=1" 2>/dev/null || true)"
+    tag="$(printf '%s' "${releases_json}" | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p' | head -n1)"
+  fi
+
+  if [[ -z "${tag}" || "${tag}" == "latest" || "${tag}" == "releases" ]]; then
+    err "failed to resolve latest release tag for ${REPO}"
+    err "no published GitHub release found. publish a release first, or use --repo with a repository that has release assets."
     exit 1
   fi
   RESOLVED_TAG="${tag}"
@@ -357,7 +365,12 @@ download_release_asset() {
   ts="$(date +%s)"
   url="https://github.com/${REPO}/releases/download/${tag}/${asset}?ts=${ts}"
   log "force-downloading ${asset} (cache-bypass) from release ${tag}"
-  curl -fL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${url}" -o "${out}"
+  if ! curl -fL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${url}" -o "${out}"; then
+    err "failed downloading release asset: ${asset}"
+    err "source: ${url}"
+    err "ensure release '${tag}' exists on ${REPO} and the asset name matches."
+    return 1
+  fi
 }
 
 install_binary_file() {

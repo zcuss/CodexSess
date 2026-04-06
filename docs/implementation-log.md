@@ -11,6 +11,14 @@ tags:
 
 ## 2026-04-06
 
+- Scope: hardened release tag resolution in Linux installer update flow.
+- Files or subsystems touched: `scripts/install.sh`.
+- Behavior/runtime effect: `--version latest` no longer mis-resolves to `releases`; installer now reads tag from GitHub release API/list and fails fast with explicit guidance when repository has no published releases or matching assets.
+- Validation status: verified API behavior for `zcuss/CodexSess` (`/releases/latest` not found, release list empty), reviewed script diff, and confirmed error path now reports root cause clearly.
+- Open follow-up items: publish a GitHub Release on `zcuss/CodexSess` (with expected asset names) to make `--mode update` perform binary download successfully.
+
+## 2026-04-06
+
 - Scope: fixed installer raw GitHub URLs to use the actual default branch case on upstream remote.
 - Files or subsystems touched: `README.md`, `README.id.md`, `web/src/views/AboutView.svelte`.
 - Behavior/runtime effect: update/install curl commands now fetch from `https://raw.githubusercontent.com/zcuss/CodexSess/Main/scripts/install.sh` and no longer return 404 due to branch-case mismatch.
